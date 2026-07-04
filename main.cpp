@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <ctime>
+#include <functional>
 #include <map>
 #include <sstream>
 #include <random>
@@ -26,7 +27,7 @@ float money;
 int number_of_orders = 1;
 
 Font F_RALEWAY = {};
-Font F_RALEWAY_I = {};
+Font F_RALEWAY_I = {};  
 Font F_MONO = {};
 
 enum class Ingredient
@@ -84,19 +85,22 @@ struct Recipe
     std::string description;
     double cost;
     std::vector<RecipeStep> steps;
-    Color frothed_color;
+    Color frothed_colors[2]; // top color first, bottom color second
     bool always_hot;
 };
 
-const Recipe espresso{
+const Recipe espresso
+{
     "Espresso",
     "Plain black coffee",
     3.00,
     {{Ingredient::ESPRESSO, 0.3, "Espresso shot"}},
-    palette.color(Ingredient::ESPRESSO),
-    true};
+    {Color{81, 50, 35, 255}, Color{70, 40, 25, 255}},
+    true
+};
 
-const Recipe latte{
+const Recipe latte
+{
     "Latte",
     "A coffee with milk",
     4.25,
@@ -105,8 +109,9 @@ const Recipe latte{
         {Ingredient::MILK, 0.6, "Add milk"},
         {Ingredient::MILK_FOAM, 0.1, "Top with foam"},
     },
-    palette.color(Ingredient::ESPRESSO),
-    false};
+    {Color{100, 70, 45, 255}, Color{60, 30, 15, 255}},
+    false
+};
 
 Recipe current_recipe;
 const std::map<std::string, Recipe> RECIPES{
@@ -121,14 +126,44 @@ const std::map<std::string, Recipe> RECIPES{
 /*                                  Functions                                 */
 /* -------------------------------------------------------------------------- */
 
-/* ---------------------------- helper functions ---------------------------- */
-// These functions serve to replace the functions found in the raylib library
-// and emulate those from pygame.
+/* ------------------------ general helper functions ------------------------ */
 
+/// @brief
+// "In mathematics, linear interpolation (sometimes lerp) is a method of curve
+// fitting using linear polynomials to construct new data points within the
+// range of a discrete set of known data points." - Wikipedia
+inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
+
+inline float interpolate(float a, float b, float t, std::function<float(float)> f) {
+    float t1 = f(t);
+    return lerp(a, b, t1);
+
+};
+
+/* ------------------------- raylib helper functions ------------------------ */
+// These functions serve to replace the functions found in the raylib library
+// and/or emulate those from pygame.
+
+Color interpolate_color(Color a, Color b, float t);
+Color interpolate_color(Color a, Color b, float t, std::function<float(float)> f);
 Texture2D _LoadImage(const char *image_path);
 Texture2D _LoadImage(const char *image_path, int width, int height);
 void _DrawText(Font font, const char *text, int x, int y, int font_size, Color color);
 void _DrawText(Font font, const char *text, int x, int y, int font_size, int anchor, Color color);
+
+Color interpolate_color(Color a, Color b, float t)
+{
+    return interpolate_color(a, b, t, [](float x){return x;});
+};
+
+Color interpolate_color(Color a, Color b, float t, std::function<float(float)> f)
+{
+    unsigned char red = (unsigned char)interpolate((float)a.r, (float)b.r, t, f);
+    unsigned char green = (unsigned char)interpolate((float)a.g, (float)b.g, t, f);
+    unsigned char blue = (unsigned char)interpolate((float)a.b, (float)b.b, t, f);
+    unsigned char alpha = (unsigned char)interpolate((float)a.a, (float)b.a, t, f);
+    return Color{red, green, blue, alpha};
+}
 
 Texture2D _LoadImage(const char *image_path)
 {
@@ -339,13 +374,31 @@ private:
     {
         float layer_height = height / 100;
         int current_height = y + height;
-        for (auto layer : layers)
+        for (int i = 0; i < num_layers; i++)
         {
             Color layer_color;
             if (frothed)
-                layer_color = current_recipe->frothed_color;
+            {
+                Color top = current_recipe->frothed_colors[0];
+                Color bottom = current_recipe->frothed_colors[1];
+                float percent = (float)i / (float)(num_layers - 1);
+                layer_color = interpolate_color(bottom, top, percent, [](float x){return 3*(1-x)*x*x+x*x*x;}); //3(1-x)x^2+x^3 (ease-in-out)
+            }
             else
-                layer_color = palette.color(layer);
+            {   
+                // search for nearest layer change
+                int j = i;
+                while (j < num_layers && layers[i] == layers[j]) j++;
+
+                // If they are actually the same layer (i.e. this is the top layer) don't lerp
+                // Or if they are more than 5 layers apart (too far to lerp, especially for smaller layers)
+                // TODO: Variable lerping?
+                if (j >= num_layers || j - i > 5 || layers [i] == layers[j]) layer_color = palette.color(layers[i]);
+                else {
+                    int diff = j - i;
+                    layer_color = interpolate_color(palette.color(layers[i]), palette.color(layers[j]), 1-diff/5.0f);
+                };
+            }
             DrawRectangle(x + 5, current_height - layer_height, width - 10, layer_height, layer_color);
             current_height -= layer_height;
         };
@@ -413,20 +466,20 @@ public:
 class Button
 {
 public:
-    int x;
-    int y;
-    int width;
-    int height;
+    float x;
+    float y;
+    float width;
+    float height;
     Rectangle rect;
     bool hovered;
 
-    Button(int _x, int _y, int _width, int _height)
+    Button(float _x, float _y, float _width, float _height)
     {
         x = _x;
         y = _y;
         width = _width;
         height = _height;
-        rect = Rectangle{(float)x, (float)y, (float)width, (float)height};
+        rect = Rectangle{x, y, width, height};
     };
 
     void update_hover()
@@ -443,7 +496,7 @@ class IngredientButton : public Button
     std::string name;
 
 public:
-    IngredientButton(Ingredient _ingredient, Texture2D _image, int _x, int _y, int _width, int _height)
+    IngredientButton(Ingredient _ingredient, Texture2D _image, float _x, float _y, float _width, float _height)
         : Button(_x, _y, _width, _height),
           ingredient(_ingredient),
           image(_image),
@@ -458,7 +511,7 @@ public:
     {
         x = 20 + (number % 2) * 80;
         y = 90 + (number / 2) * 80;
-        rect = Rectangle{(float)x, (float)y, (float)width, (float)height};
+        rect = Rectangle{x, y, width, height};
     };
 
     void _handle_event()
@@ -468,13 +521,12 @@ public:
         {
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
                 cup.add_ingredient(ingredient);
-            DrawRectangle(x, y, width, height, Color{245, 240, 235, 128});
+            DrawRectangleRoundedLinesEx(Rectangle{x - 5, y - 5, width + 10, height + 10}, 0.5, 5, 2, palette.color(ingredient));
         }
     }
 
     void draw()
     {
-        DrawRectangleRec(rect, BLANK);
         DrawTexture(image, x, y, WHITE);
         _DrawText(F_RALEWAY, name.c_str(), x + width / 2, y + height + 5, 15, DARKGRAY);
     };
@@ -532,29 +584,28 @@ private:
         std::vector<std::string> description = _WrapText(F_RALEWAY_I, current_recipe->description, 16, width - 10);
         for (int i = 0; i < (int)description.size(); i++)
         {
-            _DrawText(F_RALEWAY_I, description[i].c_str(), mid.x, y + 90 + 18*i, 16, Color{60, 40, 40, 255});
+            _DrawText(F_RALEWAY_I, description[i].c_str(), mid.x, y + 90 + 18 * i, 16, Color{60, 40, 40, 255});
         }
         offset += 18 * (description.size() - 1);
 
         // Draw steps + amounts
         int step_idx = 0;
-        for (auto step : current_recipe->steps) {
+        for (auto step : current_recipe->steps)
+        {
             std::string description = step.description;
-            std::string ingredient  = PRETTY_INGREDIENTS.at(step.ingredient);
+            std::string ingredient = PRETTY_INGREDIENTS.at(step.ingredient);
             int amount = (int)std::round(step.amount * 100);
             std::string str_amount = TextFormat("%i", amount);
             std::string txt = description + "   (" + str_amount + "% " + ingredient + ')';
-            
-            _DrawText(F_RALEWAY, txt.c_str(), x + 5, y + 120 + offset + 20*step_idx, 14, -1, Color{30, 30, 30, 255});
+
+            _DrawText(F_RALEWAY, txt.c_str(), x + 5, y + 120 + offset + 20 * step_idx, 14, -1, Color{30, 30, 30, 255});
             step_idx++;
         }
-
-
 
         return offset;
     };
 
-    void draw_dashed_lines(int offset) 
+    void draw_dashed_lines(int offset)
     {
         std::vector<float> y_levels = {y + 70.0f, y + 110.0f + offset};
         for (float y_ : y_levels)
@@ -571,6 +622,57 @@ public:
         int offset = draw_text_content();
         draw_dashed_lines(offset);
     };
+};
+
+class Customizer {
+public:
+    float* ptr;
+    float x;
+    float y;
+    float min;
+    float max;
+    float width;
+    float height;
+    bool dragging;
+
+    Customizer(float* _ptr, float _x, float _y, float _min, float _max, float _width) {
+        ptr = _ptr;
+        x = _x;
+        y = _y;
+        min = _min;
+        max = _max;
+        width = _width;
+        height = 5;
+        dragging = false;
+    };
+
+    float get_px() {
+        if (max == min) return x;
+        return x + width*((*ptr-min)/(max-min));
+    };
+
+    void click() {
+        Vector2 mouse_pos = GetMousePosition();
+        Rectangle hitbox = Rectangle{x, y - 5, width, height + 10};
+        bool hovered = CheckCollisionPointRec(mouse_pos, hitbox);
+        if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) dragging = true;
+        
+        if (dragging && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            float clamped_x = Clamp(mouse_pos.x, x, x + width);
+            *ptr = min + ((clamped_x - x) / width) *(max - min);
+            *ptr = Clamp(*ptr, min, max);
+
+            if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) dragging = false;
+        }
+
+    };
+
+    void draw() {
+        DrawRectangle(x, y, width, height, DARKGRAY);
+        DrawCircle(get_px(), y, height * 2, ORANGE); 
+        DrawText(TextFormat("%.2f", *ptr), x, y + 10, 20, DARKGRAY);
+    };
+
 };
 
 // define ranomize_recipe() after completing cup but before Cup::serve
@@ -600,16 +702,15 @@ void Cup::serve(float grade)
     Button ArrowHitbox(screenWidth - 200, screenHeight - 200, 100, 50);
     ArrowHitbox.update_hover();
     arrow_color = GOLD;
+    arrow_color = ArrowHitbox.hovered ? ORANGE : GOLD;
     if (ArrowHitbox.hovered)
-    {
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-        {
-            reset();
-            money += grade * current_recipe->cost;
-            number_of_orders += 1;
-            randomize_recipe();
-        };
         arrow_color = ORANGE;
+    if ((ArrowHitbox.hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ENTER))
+    {
+        reset();
+        money += grade * current_recipe->cost;
+        number_of_orders += 1;
+        randomize_recipe();
     };
 
     DrawRectangle((int)(ArrowHitbox.x),
@@ -675,6 +776,9 @@ int main(void)
     cup.reset();
     money = 0.0f;
 
+    float x = 5.0f;
+    Customizer slider(&x, 1200, 700, 0, 10, 200);
+
     /* ------------------------------ main loop ----------------------------- */
 
     while (!WindowShouldClose())
@@ -707,6 +811,10 @@ int main(void)
         receipt.draw();
 
         _DrawText(F_RALEWAY, TextFormat("Money: $%02.02f", money), 10, 30, 36, -1, LIME);
+
+        // slider.draw();
+        // slider.click();
+        // std::cout << x << std::endl;
 
         EndDrawing();
     };
