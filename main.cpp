@@ -47,6 +47,7 @@ enum class Ingredient
 
     WATER,
     BEANS,
+    SIMPLE_SYRUP,
 
     // TEA
 
@@ -57,6 +58,11 @@ enum class Ingredient
     MILK,
     MILK_FOAM,
     STEAMED_MILK,
+
+    // FRUIT
+
+    COCONUT,
+    STRAWBERRY,
 
     // TOPPING
 
@@ -74,10 +80,13 @@ std::vector<Ingredient> Toppings{
 const std::map<Ingredient, std::string> PRETTY_INGREDIENTS{
     {Ingredient::WATER, "Water"},
     {Ingredient::BEANS, "Coffee Beans"},
+    {Ingredient::SIMPLE_SYRUP, "Simple Syrup"},
     {Ingredient::MATCHA_POWDER, "Matcha Powder"},
     {Ingredient::MILK, "Milk"},
     {Ingredient::MILK_FOAM, "Milk Foam"},
     {Ingredient::STEAMED_MILK, "Steamed Milk"},
+    {Ingredient::COCONUT, "Coconut"},
+    {Ingredient::STRAWBERRY, "Strawberry"},
     {Ingredient::ICE, "Ice"},
 };
 
@@ -93,14 +102,16 @@ struct Palette
 
 const Palette palette = { // goes in Ingredient order
     {
-        {120, 195, 240, 255}, // water
-        {81, 50, 35, 255},    // coffee beans
-        {140, 210, 150, 255}, // matcha
-        {250, 245, 240, 255}, // milk
-        {240, 238, 236, 255}, // milk foam
-        {250, 245, 240, 255}, // steamed milk
-        {41, 190, 189, 255},  // ice
-
+        {105, 185, 235, 120}, // water
+        {65, 38, 25, 255},    // coffee beans
+        {225, 220, 180, 160}, // simple syrup,
+        {120, 195, 130, 255}, // matcha
+        {252, 248, 242, 255}, // milk
+        {242, 240, 235, 255}, // milk foam
+        {248, 240, 230, 255}, // steamed milk
+        {250, 237, 222, 255}, // coconut
+        {180, 30, 15, 255},   // strawberry
+        {75, 215, 215, 255},  // ice
     }};
 
 /* --------------------------------- recipes -------------------------------- */
@@ -127,7 +138,8 @@ const Recipe espresso{
     "Plain black coffee",
     3.00,
     {{Ingredient::BEANS, 0.3, "Espresso shot"}},
-    {Color{125, 80, 55, 255}, Color{81, 50, 35, 255}}, true};
+    {Color{140, 95, 70, 255}, Color{81, 50, 35, 255}},
+    true};
 
 const Recipe flat_white{
     "Flat White",
@@ -137,7 +149,7 @@ const Recipe flat_white{
         {Ingredient::BEANS, 0.3, "Espresso shot"},
         {Ingredient::MILK, 0.6, "Add milk"},
     },
-    {Color{90, 70, 45, 255}, Color{55, 25, 15, 255}},
+    {Color{210, 185, 170, 255}, Color{145, 110, 90, 255}},
     false};
 
 const Recipe latte{
@@ -149,7 +161,18 @@ const Recipe latte{
         {Ingredient::MILK, 0.6, "Add milk"},
         {Ingredient::MILK_FOAM, 0.1, "Top with foam"},
     },
-    {Color{100, 70, 45, 255}, Color{60, 30, 15, 255}},
+    {Color{235, 225, 215, 255}, Color{155, 120, 100, 255}},
+    false};
+
+const Recipe americano{
+    "Americano",
+    "A coffee with water",
+    3.50,
+    {
+        {Ingredient::BEANS, 0.3, "Espresso shot"},
+        {Ingredient::MILK, 0.6, "Add water"},
+    },
+    {Color{140, 95, 70, 230}, Color{81, 50, 35, 230}},
     false};
 
 const Recipe matcha{
@@ -158,7 +181,7 @@ const Recipe matcha{
     4.00,
     {{Ingredient::MATCHA_POWDER, 0.3, "Start with matcha powder"},
      {Ingredient::WATER, 0.6, "Whisk with hot water"}},
-    {Color{120, 200, 150, 255}, Color{100, 170, 100, 255}},
+    {Color{155, 225, 165, 255}, Color{125, 190, 135, 255}},
     false,
 };
 
@@ -169,8 +192,36 @@ const Recipe matcha_latte{
     {{Ingredient::MATCHA_POWDER, 0.2, "Start with matcha powder"},
      {Ingredient::WATER, 0.3, "Whisk with hot water"},
      {Ingredient::MILK, 0.5, "Add milk"}},
-    {Color{210, 245, 215, 255}, Color{120, 200, 135, 255}},
+    {Color{220, 245, 225, 255}, Color{165, 220, 175, 255}},
     false};
+
+const Recipe strawberry_matcha_latte{
+    "Strawberry Matcha Latte",
+    "Matcha with milk and strawberry syrup",
+    4.75,
+    {
+        {Ingredient::MATCHA_POWDER, 0.2, "Start with matcha powder"},
+        {Ingredient::WATER, 0.3, "Whisk with hot water"},
+        {Ingredient::MILK, 0.4, "Add milk"},
+        {Ingredient::STRAWBERRY, 0.1, "Flavor with strawberry syrup"},
+    },
+    {Color{165, 220, 175, 255}, Color{180, 105, 100, 250}},
+    false,
+};
+
+const Recipe coconut_matcha_latte{
+    "Coconut Matcha Latte",
+    "Matcha with milk and coconut cream",
+    4.75,
+    {
+        {Ingredient::MATCHA_POWDER, 0.2, "Start with matcha powder"},
+        {Ingredient::WATER, 0.3, "Whisk with hot water"},
+        {Ingredient::MILK, 0.4, "Add milk"},
+        {Ingredient::COCONUT, 0.1, "Flavor with coconut cream"},
+    },
+    {Color{165, 220, 175, 255}, Color{230, 220, 220, 250}},
+    false,
+};
 
 struct RecipeState
 {
@@ -181,10 +232,13 @@ RecipeState current_recipe;
 const std::vector<Recipe> RECIPES{
     espresso,
     flat_white,
+    americano,
     latte,
     matcha,
-    matcha_latte};
-
+    matcha_latte,
+    strawberry_matcha_latte,
+    coconut_matcha_latte,
+};
 
 #pragma endregion
 
@@ -512,7 +566,7 @@ private:
             float current_y = current_height - layer_height;
 
             if (current_y <= cup_bottom - r)
-                DrawRectangle(x, current_height - layer_height, width, layer_height, layer_color);
+                DrawRectangle(x + 2.5, current_height - layer_height, width - 5, layer_height, layer_color);
             else
             {
                 float dy = cup_bottom - r - current_y;
@@ -520,7 +574,7 @@ private:
                 float target_w = width - 2 * r + 2 * dx;
                 float target_x = x + (width - target_w) / 2.0f;
 
-                DrawRectangle(target_x, current_y, target_w, layer_height, layer_color);
+                DrawRectangle(target_x + 2.5, current_y, target_w - 5, layer_height, layer_color);
             };
             current_height -= layer_height;
         };
@@ -862,7 +916,9 @@ private:
         }
         if (ice_txt != "")
         {
-            _DrawText(F_RALEWAY, ("Add " + std::to_string(ice) + " ice cubes").c_str(), x + 5, y + 120 + offset_d + 20 * step_idx, 14, -1, Color{30, 30, 30, 255});
+            std::string ice_num = std::to_string(ice);
+            std::string cubes = ice > 1 ? " ice cubes" : " ice cube";
+            _DrawText(F_RALEWAY, ("Add " + ice_num + cubes).c_str(), x + 5, y + 120 + offset_d + 20 * step_idx, 14, -1, Color{30, 30, 30, 255});
             step_idx++;
         }
         offset_i += (step_idx - 1) * 20;
@@ -1028,11 +1084,14 @@ int NumCatBtns = sizeof(CatBtns) / sizeof(CategoryButton);
 
 IngredientButton WaterBtn(Ingredient::WATER, Category::BASIC, Texture2D{}, 64, 64);
 IngredientButton BeansBtn(Ingredient::BEANS, Category::BASIC, Texture2D{}, 64, 64);
+IngredientButton SugarBtn(Ingredient::SIMPLE_SYRUP, Category::BASIC, Texture2D{}, 64, 64);
 IngredientButton MatchaBtn(Ingredient::MATCHA_POWDER, Category::TEA, Texture2D{}, 64, 64);
 IngredientButton MilkBtn(Ingredient::MILK, Category::DAIRY, Texture2D{}, 64, 64);
 IngredientButton MilkFoamBtn(Ingredient::MILK_FOAM, Category::DAIRY, Texture2D{}, 64, 64);
+IngredientButton CoconutBtn(Ingredient::COCONUT, Category::FRUIT, Texture2D{}, 64, 64);
+IngredientButton StrawberryBtn(Ingredient::STRAWBERRY, Category::FRUIT, Texture2D{}, 64, 64);
 IngredientButton IceBtn(Ingredient::ICE, Category::TOPPINGS, Texture2D{}, 64, 64);
-IngredientButton IngBtns[6] = {WaterBtn, BeansBtn, MatchaBtn, MilkBtn, MilkFoamBtn, IceBtn};
+IngredientButton IngBtns[9] = {WaterBtn, BeansBtn, SugarBtn, MatchaBtn, MilkBtn, MilkFoamBtn, CoconutBtn, StrawberryBtn, IceBtn};
 int NumIngBtns = sizeof(IngBtns) / sizeof(IngredientButton);
 
 /* -------------------------------------------------------------------------- */
@@ -1061,10 +1120,13 @@ int main(void)
 
     IngBtns[0].set_texture(_LoadImage("images/water_sprite_1.png", 64, 64));
     IngBtns[1].set_texture(_LoadImage("images/beans_sprite_1.png", 64, 64));
-    IngBtns[2].set_texture(_LoadImage("images/match_sprite_1a.png", 64, 64));
-    IngBtns[3].set_texture(_LoadImage("images/milk_sprite_1.png", 64, 64));
-    IngBtns[4].set_texture(_LoadImage("images/milk foam_sprite_1.png", 64, 64));
-    IngBtns[5].set_texture(_LoadImage("images/ice_sprite_1.png", 64, 64));
+    IngBtns[2].set_texture(_LoadImage("images/sugar_sprite_1.png", 64, 64));
+    IngBtns[3].set_texture(_LoadImage("images/matcha_sprite_1.png", 64, 64));
+    IngBtns[4].set_texture(_LoadImage("images/milk_sprite_1.png", 64, 64));
+    IngBtns[5].set_texture(_LoadImage("images/milk foam_sprite_1.png", 64, 64));
+    IngBtns[6].set_texture(_LoadImage("images/coconut_sprite_1.png", 64, 64));
+    IngBtns[7].set_texture(_LoadImage("images/strawberry_sprite_1.png", 64, 64));
+    IngBtns[8].set_texture(_LoadImage("images/ice_sprite_1.png", 64, 64));
     int index = 0;
     for (auto &btn : IngBtns)
     {
@@ -1083,7 +1145,8 @@ int main(void)
 
         /* -------------------------- update window ------------------------- */
 
-        if (IsKeyPressed(KEY_R)) randomize_recipe();
+        if (IsKeyPressed(KEY_R))
+            randomize_recipe();
 
         /* -------------------------- drawing loop -------------------------- */
         BeginDrawing();
